@@ -82,3 +82,6 @@ Thumbs.db
 # Cache
 .cache/
 *.cache
+
+# Frontend (maintained locally)
+frontend/
