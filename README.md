@@ -66,6 +66,21 @@ brain-tumor-ai/
 └── test_engine.py               # Inference engine test suite
 ```
 
+## 🧪 Dry Run / Demo
+
+This repository includes a small set of **pre-committed samples** in `data/samples/` and metadata files (`data/labels_cls.csv`). You can run a full demo of the system immediately after cloning, without needing the full dataset.
+
+> [!NOTE]
+> You still need to place trained weights in the `models/` directory.
+
+```bash
+# Run the interactive demo
+# It will automatically use data/samples/ if the full dataset is missing
+python demo.py
+
+# Results will be saved to inference_demo_results.png
+```
+
 ## 🚀 Quick Start
 
 ### 1. Environment Setup

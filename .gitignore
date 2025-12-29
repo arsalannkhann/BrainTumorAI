@@ -26,8 +26,7 @@ wheels/
 .installed.cfg
 *.egg
 
-# Data and large files
-data/
+# Global Ignores
 checkpoints/
 models/
 *.npy
@@ -39,16 +38,21 @@ models/
 *.nii
 *.nii.gz
 
-# Whitelist "best" models if we want them in Git (optional, but 1GB is too big)
-# For now, let's just keep them ignored but keep the folder
+# Data Whitelist
+data/*
+!data/labels_cls.csv
+!data/splits/
+!data/splits/
+!data/splits/**/*
+!data/splits_cls/
+!data/splits_cls/**/*
+!data/samples/
+!data/samples/**/*
 
 # Model outputs and results
 !results/
 results_test/
-masks/
-# *.png  <-- Remove global image ignore to allow results images
-# *.jpg
-# *.jpeg
+/masks/
 
 # Logs
 preprocess.log

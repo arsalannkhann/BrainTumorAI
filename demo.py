@@ -41,6 +41,13 @@ def visualize_classification(engine: BrainTumorInferenceEngine, ax_list: list, n
     # Pick random samples
     samples = labels_df.sample(min(num_samples, len(labels_df)))
     
+    # Check if we need to use fallback samples
+    roi_dir = Path("data/roi")
+    use_fallback = not roi_dir.exists() or not any(roi_dir.glob("*.npy"))
+    if use_fallback:
+        print("[Demo] Using fallback classification samples from data/samples/roi")
+        roi_dir = Path("data/samples/roi")
+    
     for i, (_, row) in enumerate(samples.iterrows()):
         if i >= len(ax_list):
             break
@@ -49,7 +56,7 @@ def visualize_classification(engine: BrainTumorInferenceEngine, ax_list: list, n
         true_label = row["label"]
         
         # Load ROI
-        roi_path = Path(f"data/roi/{patient_id}_roi.npy")
+        roi_path = roi_dir / f"{patient_id}_roi.npy"
         if not roi_path.exists():
             continue
         
@@ -97,6 +104,13 @@ def visualize_segmentation(engine: BrainTumorInferenceEngine, ax_list: list, num
     # Find processed files
     files = list(processed_dir.glob("*/BraTS20_*.npy"))
     
+    # Check if we need to use fallback samples
+    if not files:
+        processed_dir = Path("data/samples/processed")
+        files = list(processed_dir.glob("*.npy"))
+        if files:
+            print("[Demo] Using fallback segmentation samples from data/samples/processed")
+    
     if not files:
         print("[Demo] No processed data found for segmentation")
         return
@@ -117,7 +131,13 @@ def visualize_segmentation(engine: BrainTumorInferenceEngine, ax_list: list, num
                 mask_img = nib.load(mask_path)
                 gt_mask = mask_img.get_fdata()
             else:
-                gt_mask = None
+                # Check fallback masks
+                fallback_mask = Path("data/samples/masks") / f"{patient_id}_seg.nii.gz"
+                if fallback_mask.exists():
+                    mask_img = nib.load(fallback_mask)
+                    gt_mask = mask_img.get_fdata()
+                else:
+                    gt_mask = None
                 
         except Exception as e:
             print(f"[Demo] Error loading {patient_id}: {e}")
