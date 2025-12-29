@@ -5,6 +5,8 @@ Production-grade REST API for:
 - Single image classification
 - Single/batch segmentation
 - Combined inference with validation
+- History tracking (SQLite)
+- Explainability (Grad-CAM)
 
 Endpoints:
 - POST /classify - Classify single MRI
@@ -12,6 +14,9 @@ Endpoints:
 - POST /infer - Full inference pipeline
 - POST /batch - Batch inference
 - GET /health - Health check
+- GET /history - Get past predictions
+- POST /upload - Upload and process image
+- POST /explain/gradcam - Generate Grad-CAM
 """
 
 import base64
@@ -19,15 +24,21 @@ import io
 import os
 import sys
 import tempfile
+import shutil
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
 
 import numpy as np
-from fastapi import FastAPI, File, HTTPException, UploadFile
+import cv2
+import torch
+from fastapi import FastAPI, File, HTTPException, UploadFile, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 import uvicorn
 
 # Add parent directory to path
@@ -41,6 +52,19 @@ from inference.engine import (
     InferenceReport,
     TumorClass,
 )
+from inference.database import init_db, get_db, PredictionRecord
+from inference.xai import GradCAM, visualize_gradcam
+
+# ============================================================================
+# Configuration & Directories
+# ============================================================================
+
+UPLOAD_DIR = Path("data/uploads")
+MASK_DIR = Path("data/masks")
+GRADCAM_DIR = Path("data/gradcam")
+
+for d in [UPLOAD_DIR, MASK_DIR, GRADCAM_DIR]:
+    d.mkdir(parents=True, exist_ok=True)
 
 # ============================================================================
 # Pydantic Models
@@ -71,6 +95,7 @@ class SegmentationResponse(BaseModel):
     stats: SegmentationStats
     mask_shape: List[int] = Field(..., description="Shape of output mask")
     combined_mask_base64: Optional[str] = Field(None, description="Base64 encoded mask")
+    mask_path: Optional[str] = None
 
 
 class ValidationResponse(BaseModel):
@@ -83,6 +108,7 @@ class ValidationResponse(BaseModel):
 
 
 class InferenceResponse(BaseModel):
+    id: Optional[int] = None
     image_id: str
     timestamp: str
     device: str
@@ -91,6 +117,8 @@ class InferenceResponse(BaseModel):
     classification: Optional[ClassificationResponse] = None
     segmentation: Optional[SegmentationResponse] = None
     validation: ValidationResponse
+    image_path: Optional[str] = None
+    gradcam_path: Optional[str] = None
 
 
 class HealthResponse(BaseModel):
@@ -113,7 +141,6 @@ class BatchInferenceRequest(BaseModel):
     """Request for batch inference."""
     images: List[InferenceRequest]
 
-
 # ============================================================================
 # API Setup
 # ============================================================================
@@ -122,8 +149,6 @@ app = FastAPI(
     title="Brain Tumor MRI Analysis API",
     description="Production-grade inference API for brain tumor classification and segmentation",
     version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
 )
 
 # CORS configuration
@@ -135,9 +160,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount static files for accessing images
+app.mount("/data", StaticFiles(directory="data"), name="data")
+
 # Global inference engine
 engine: Optional[BrainTumorInferenceEngine] = None
-
+gradcam: Optional[GradCAM] = None
 
 # ============================================================================
 # Startup/Shutdown Events
@@ -145,9 +173,13 @@ engine: Optional[BrainTumorInferenceEngine] = None
 
 @app.on_event("startup")
 async def load_models():
-    """Load models on startup."""
-    global engine
+    """Load models and initialize DB on startup."""
+    global engine, gradcam
     
+    # Initialize DB
+    init_db()
+    print("[API] Database initialized")
+
     cls_checkpoint = os.environ.get(
         "CLS_CHECKPOINT", 
         "checkpoints/classification/best_model.pt"
@@ -163,13 +195,22 @@ async def load_models():
     device = os.environ.get("DEVICE", None)
     
     print("[API] Loading inference engine...")
-    engine = create_inference_engine(
-        cls_checkpoint=cls_checkpoint,
-        seg_checkpoint=seg_checkpoint,
-        seg_config=seg_config,
-        device=device,
-    )
-    print("[API] Inference engine ready")
+    try:
+        engine = create_inference_engine(
+            cls_checkpoint=cls_checkpoint,
+            seg_checkpoint=seg_checkpoint,
+            seg_config=seg_config,
+            device=device,
+        )
+        print("[API] Inference engine ready")
+        
+        if engine.cls_model:
+             gradcam = GradCAM(engine.cls_model)
+             print("[API] Grad-CAM initialized")
+             
+    except Exception as e:
+        print(f"[API] Error loading models: {e}")
+        # We don't crash app, just report unhealthy
 
 
 # ============================================================================
@@ -210,7 +251,8 @@ def classification_to_response(result: ClassificationResult) -> ClassificationRe
 
 def segmentation_to_response(
     result: SegmentationResult, 
-    include_mask: bool = False
+    include_mask: bool = False,
+    mask_path: str = None
 ) -> SegmentationResponse:
     """Convert segmentation result to response model."""
     response = SegmentationResponse(
@@ -222,40 +264,42 @@ def segmentation_to_response(
         ),
         mask_shape=list(result.combined_mask.shape),
         combined_mask_base64=encode_numpy_array(result.combined_mask) if include_mask else None,
+        mask_path=mask_path
     )
     return response
 
 
-def report_to_response(
-    report: InferenceReport, 
-    include_masks: bool = False
-) -> InferenceResponse:
-    """Convert inference report to response model."""
-    classification = None
+def save_prediction_to_db(
+    db: Session,
+    report: InferenceReport,
+    image_path: str,
+    mask_path: Optional[str] = None,
+    gradcam_path: Optional[str] = None
+) -> PredictionRecord:
+    """Save prediction result to database."""
+    
+    probs = {}
     if report.classification:
-        classification = classification_to_response(report.classification)
-
-    segmentation = None
-    if report.segmentation:
-        segmentation = segmentation_to_response(report.segmentation, include_masks)
-
-    return InferenceResponse(
+        probs = report.classification.class_probabilities
+        
+    record = PredictionRecord(
         image_id=report.image_id,
-        timestamp=report.timestamp.isoformat(),
-        device=report.device,
-        inference_time_ms=report.inference_time_ms,
-        final_status="ready" if not report.validation.requires_manual_review else "manual_review",
-        classification=classification,
-        segmentation=segmentation,
-        validation=ValidationResponse(
-            confidence_passed=report.validation.confidence_passed,
-            segmentation_plausible=report.validation.segmentation_plausible,
-            anatomical_plausibility=report.validation.anatomical_plausibility,
-            mask_alignment_valid=report.validation.mask_alignment_valid,
-            notes=report.validation.notes,
-            requires_manual_review=report.validation.requires_manual_review,
-        ),
+        timestamp=report.timestamp,
+        image_path=image_path,
+        mask_path=mask_path,
+        gradcam_path=gradcam_path,
+        predicted_class=report.classification.predicted_class.name if report.classification else None,
+        confidence_score=report.classification.confidence_score if report.classification else None,
+        probabilities=probs,
+        tumor_area_percentage=report.segmentation.tumor_area_percentage if report.segmentation else None,
+        has_tumor=(report.segmentation.tumor_area_percentage > 0) if report.segmentation else False,
+        validation_passed=not report.validation.requires_manual_review
     )
+    
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
 
 
 # ============================================================================
@@ -274,85 +318,52 @@ async def health_check():
     )
 
 
-@app.post("/classify", response_model=ClassificationResponse, tags=["Classification"])
-async def classify_image(request: InferenceRequest):
-    """
-    Classify a single brain MRI image.
-    
-    Input should be a base64-encoded numpy array of shape (C, H, W) or (C, H, W, D).
-    """
-    if engine is None or engine.cls_model is None:
-        raise HTTPException(status_code=503, detail="Classification model not loaded")
-    
-    image = decode_numpy_array(request.image_base64)
-    result = engine.classify(image)
-    return classification_to_response(result)
-
-
-@app.post("/segment", response_model=SegmentationResponse, tags=["Segmentation"])
-async def segment_image(request: InferenceRequest, include_mask: bool = False):
-    """
-    Segment a single brain MRI volume.
-    
-    Input should be a base64-encoded numpy array of shape (C, H, W, D).
-    Set include_mask=true to receive the base64-encoded mask in response.
-    """
-    if engine is None or engine.seg_model is None:
-        raise HTTPException(status_code=503, detail="Segmentation model not loaded")
-    
-    image = decode_numpy_array(request.image_base64)
-    
-    if image.ndim != 4:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Expected 4D input (C, H, W, D), got {image.ndim}D"
-        )
-    
-    result = engine.segment(image)
-    return segmentation_to_response(result, include_mask)
-
-
-@app.post("/infer", response_model=InferenceResponse, tags=["Inference"])
-async def full_inference(request: InferenceRequest, include_masks: bool = False):
-    """
-    Run complete inference pipeline (classification + segmentation + validation).
-    
-    Input should be a base64-encoded numpy array.
-    """
-    if engine is None:
-        raise HTTPException(status_code=503, detail="Inference engine not loaded")
-    
-    image = decode_numpy_array(request.image_base64)
-    
-    report = engine.run_inference(
-        image=image,
-        image_id=request.image_id,
-        run_classification=request.run_classification,
-        run_segmentation=request.run_segmentation,
-    )
-    
-    return report_to_response(report, include_masks)
-
-
-@app.post("/batch", response_model=List[InferenceResponse], tags=["Batch"])
-async def batch_inference(request: BatchInferenceRequest, include_masks: bool = False):
-    """
-    Run batch inference on multiple images.
-    """
-    if engine is None:
-        raise HTTPException(status_code=503, detail="Inference engine not loaded")
+@app.get("/history", response_model=List[InferenceResponse], tags=["History"])
+async def get_history(limit: int = 50, db: Session = Depends(get_db)):
+    """Get history of predictions."""
+    records = db.query(PredictionRecord).order_by(PredictionRecord.timestamp.desc()).limit(limit).all()
     
     responses = []
-    for item in request.images:
-        image = decode_numpy_array(item.image_base64)
-        report = engine.run_inference(
-            image=image,
-            image_id=item.image_id,
-            run_classification=item.run_classification,
-            run_segmentation=item.run_segmentation,
-        )
-        responses.append(report_to_response(report, include_masks))
-    
+    for r in records:
+        responses.append(InferenceResponse(
+            id=r.id,
+            image_id=r.image_id,
+            timestamp=r.timestamp.isoformat(),
+            device="saved",
+            inference_time_ms=0,
+            final_status="ready" if r.validation_passed else "manual_review",
+            classification=ClassificationResponse(
+                predicted_class=r.predicted_class,
+                confidence_score=r.confidence_score,
+                is_low_confidence=False, # TODO store this
+                class_probabilities=ClassProbabilities(
+                    glioma=r.probabilities.get("Glioma", 0.0),
+                    meningioma=r.probabilities.get("Meningioma", 0.0),
+                    pituitary=r.probabilities.get("Pituitary", 0.0),
+                    no_tumor=r.probabilities.get("No Tumor", 0.0),
+                )
+            ) if r.predicted_class else None,
+            segmentation=SegmentationResponse(
+                stats=SegmentationStats(
+                    edema_present=False, # stored implicitly
+                    enhancing_present=False, 
+                    necrotic_present=False,
+                    tumor_area_percentage=r.tumor_area_percentage or 0.0
+                ),
+                mask_shape=[],
+                mask_path=r.mask_path
+            ) if r.tumor_area_percentage is not None else None,
+            validation=ValidationResponse(
+                confidence_passed=True,
+                segmentation_plausible=True,
+                anatomical_plausibility=True,
+                mask_alignment_valid=True,
+                notes=[],
+                requires_manual_review=not r.validation_passed
+            ),
+            image_path=r.image_path,
+            gradcam_path=r.gradcam_path
+        ))
     return responses
 
 
@@ -361,53 +372,170 @@ async def upload_and_infer(
     file: UploadFile = File(...),
     run_classification: bool = True,
     run_segmentation: bool = True,
-    include_masks: bool = False,
+    db: Session = Depends(get_db)
 ):
     """
-    Upload a .npy file directly and run inference.
+    Upload a file, run inference, save results, and return report.
+    Supports .npy, .jpg, .png.
     """
     if engine is None:
         raise HTTPException(status_code=503, detail="Inference engine not loaded")
     
-    if not file.filename.endswith(".npy"):
-        raise HTTPException(status_code=400, detail="Only .npy files are supported")
+    # Save Upload
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    sanitized_filename = f"{timestamp}_{file.filename}"
+    file_path = UPLOAD_DIR / sanitized_filename
     
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # Load Image
     try:
-        # Save to temp file and load
-        with tempfile.NamedTemporaryFile(suffix=".npy", delete=False) as tmp:
-            content = await file.read()
-            tmp.write(content)
-            tmp_path = tmp.name
-        
-        image = np.load(tmp_path, allow_pickle=False)
-        os.unlink(tmp_path)
-        
+        if file.filename.endswith(".npy"):
+            image = np.load(file_path)
+        elif file.filename.endswith((".jpg", ".png", ".jpeg")):
+            # Convert simple image to model format
+            # This is a bit tricky depending on model expectation (3D vs 2D)
+            # For now, assume we handle 2D images by repeating slices or 3 ch
+            img_cv = cv2.imread(str(file_path))
+            if img_cv is None:
+                 raise ValueError("Invalid image")
+            img_cv = cv2.cvtColor(img_cv, cv2.COLOR_BGR2RGB)
+            
+            # Normalize to 0-1
+            img_cv = img_cv.astype(np.float32) / 255.0
+            
+            # Model expects (C, H, W) or (C, H, W, D)
+            # If 2D image, make it (3, H, W)
+            image = np.transpose(img_cv, (2, 0, 1))
+            
+            # If model is 2.5D or 3D, we might need to adjust dim
+            # But the engine might handle 2D inputs for classification
+        else:
+            raise HTTPException(status_code=400, detail="Unsupported file format")
+            
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to load file: {str(e)}")
-    
+        raise HTTPException(status_code=400, detail=f"Failed to load image: {e}")
+
+    # Run Inference
     report = engine.run_inference(
         image=image,
-        image_id=file.filename,
+        image_id=sanitized_filename,
         run_classification=run_classification,
         run_segmentation=run_segmentation,
     )
     
-    return report_to_response(report, include_masks)
+    # Save Mask if exists
+    mask_rel_path = None
+    mask_png_rel_path = None
+    if report.segmentation:
+        mask_filename = f"mask_{sanitized_filename}.npy"
+        mask_full_path = MASK_DIR / mask_filename
+        np.save(mask_full_path, report.segmentation.combined_mask)
+        mask_rel_path = str(mask_full_path)
+        
+        # Save PNG preview for frontend
+        try:
+             # Find slice with most tumor
+             mask_data = report.segmentation.combined_mask
+             if mask_data.ndim == 3: # (H, W, D)
+                 # Sum across spatial dims to find max tumor
+                 sums = mask_data.sum(axis=(0, 1))
+                 z = np.argmax(sums) if sums.max() > 0 else mask_data.shape[2] // 2
+                 mask_slice = mask_data[:, :, z]
+             else:
+                 mask_slice = mask_data
+                 
+             # Colorize
+             # 0: BG, 1: NCR (Red), 2: ED (Green), 3: ET (Blue)
+             # Map for visualization: NCR=Red, ED=Green, ET=Blue
+             H, W = mask_slice.shape
+             vis_mask = np.zeros((H, W, 4), dtype=np.uint8)
+             
+             # NCR (1) -> Red
+             vis_mask[mask_slice == 1] = [0, 0, 255, 128] # BGRA
+             # ED (2) -> Green
+             vis_mask[mask_slice == 2] = [0, 255, 0, 128] 
+             # ET (3) -> Blue
+             vis_mask[mask_slice == 3] = [255, 0, 0, 128]
+             
+             mask_png_filename = f"mask_{sanitized_filename}.png"
+             mask_png_path = MASK_DIR / mask_png_filename
+             cv2.imwrite(str(mask_png_path), vis_mask)
+             mask_png_rel_path = str(mask_png_path)
+             
+        except Exception as e:
+            print(f"[API] Mask visualization failed: {e}")
+        
+    # Generate & Save GradCAM if classification was run
+    gradcam_rel_path = None
+    if report.classification and gradcam:
+        try:
+            # We need a tensor for GradCAM
+            input_tensor = torch.from_numpy(image).unsqueeze(0).to(engine.device)
+            # Handle dimension mismatch if needed (e.g. 2.5D)
+            # engine.cls_model expects (B, S, C, H, W) or similar
+            # This logic depends on dataset conventions. 
+            # If loaded from .npy, it usually matches.
+            # Only trying if shape matches loosely
+            
+            heatmap, pred_class, conf = gradcam(input_tensor)
+            
+            # Visualize on the middle slice or first channel
+            if image.ndim == 4: # (C, H, W, D)
+                vis_img = image[0, :, :, image.shape[3]//2]
+            elif image.ndim == 3 and image.shape[0] > 4: # (S, C, H, W)?
+                vis_img = image[0, 0] # First slice, first ch?
+            else: # (C, H, W)
+                vis_img = image[0] 
+                
+            overlay = visualize_gradcam(vis_img, heatmap)
+            
+            # Save overlay image
+            gc_filename = f"gradcam_{sanitized_filename}.png"
+            gc_full_path = GRADCAM_DIR / gc_filename
+            
+            # Convert to uint8 0-255 for saving
+            overlay_uint8 = (overlay * 255).astype(np.uint8)
+            overlay_bgr = cv2.cvtColor(overlay_uint8, cv2.COLOR_RGB2BGR)
+            cv2.imwrite(str(gc_full_path), overlay_bgr)
+            gradcam_rel_path = str(gc_full_path)
+            
+        except Exception as e:
+            print(f"[API] Grad-CAM failed: {e}")
 
-
-@app.get("/report/{image_id}", tags=["Reports"])
-async def get_text_report(image_id: str):
-    """
-    Generate a text report for a previously processed image.
-    
-    Note: This is a placeholder - in production, implement caching/storage.
-    """
-    # In production, retrieve from cache/database
-    return JSONResponse(
-        status_code=501,
-        content={"detail": "Report storage not implemented. Use /infer endpoint."}
+    # Save to DB
+    record = save_prediction_to_db(
+        db=db,
+        report=report,
+        image_path=str(file_path),
+        mask_path=mask_png_rel_path or mask_rel_path,
+        gradcam_path=gradcam_rel_path
     )
-
+    
+    # Formulate Response
+    response = InferenceResponse(
+        id=record.id,
+        image_id=report.image_id,
+        timestamp=report.timestamp.isoformat(),
+        device=report.device,
+        inference_time_ms=report.inference_time_ms,
+        final_status="ready" if not report.validation.requires_manual_review else "manual_review",
+        classification=classification_to_response(report.classification) if report.classification else None,
+        segmentation=segmentation_to_response(report.segmentation, mask_path=mask_png_rel_path or mask_rel_path) if report.segmentation else None,
+        validation=ValidationResponse(
+            confidence_passed=report.validation.confidence_passed,
+            segmentation_plausible=report.validation.segmentation_plausible,
+            anatomical_plausibility=report.validation.anatomical_plausibility,
+            mask_alignment_valid=report.validation.mask_alignment_valid,
+            notes=report.validation.notes,
+            requires_manual_review=report.validation.requires_manual_review,
+        ),
+        image_path=str(file_path),
+        gradcam_path=gradcam_rel_path
+    )
+    
+    return response
 
 # ============================================================================
 # Main

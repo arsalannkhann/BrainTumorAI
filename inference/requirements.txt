@@ -1,0 +1,30 @@
+# Inference Module Requirements
+# Install: pip install -r requirements.txt
+
+# Core
+torch>=2.0.0
+torchvision>=0.15.0
+numpy>=1.24.0
+monai>=1.2.0
+
+# API
+fastapi>=0.100.0
+uvicorn>=0.22.0
+python-multipart>=0.0.6
+
+# Medical imaging
+nibabel>=5.0.0
+SimpleITK>=2.2.0
+scikit-image>=0.21.0
+
+# Utilities
+pyyaml>=6.0
+tqdm>=4.65.0
+Pillow>=9.5.0
+
+# Optional: Production
+gunicorn>=21.0.0  # Production WSGI
+
+# Optional: Explainability
+matplotlib>=3.7.0
+opencv-python>=4.8.0

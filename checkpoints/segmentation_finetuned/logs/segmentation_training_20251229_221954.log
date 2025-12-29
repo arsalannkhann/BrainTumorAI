@@ -1,0 +1,179 @@
+[2025-12-29 22:19:54] [INFO] [logger.py:151] Configuration:
+amp:
+  enabled: true
+augmentation:
+  random_flip_prob: 0.5
+  random_gaussian_noise_prob: 0.2
+  random_gaussian_noise_std: 0.05
+  random_intensity_scale: 0.15
+  random_intensity_shift: 0.15
+  random_rotate_prob: 0.3
+  roi_size:
+  - 128
+  - 128
+  - 128
+  rotate_range:
+  - 0.5236
+  - 0.5236
+  - 0.5236
+checkpoint:
+  metric: mean_dice
+  mode: max
+  save_best_only: true
+  save_dir: checkpoints/segmentation_finetuned
+data:
+  masks_dir: data/masks
+  processed_dir: data/processed
+  raw_dir: data/raw
+  splits_dir: data/splits
+logging:
+  log_interval: 10
+  project_name: brain-tumor-seg-finetune
+  use_wandb: false
+loss:
+  dice_weight: 0.7
+  focal_weight: 0.3
+  include_background: false
+  name: DiceFocalLoss
+  softmax: true
+model:
+  channels:
+  - 32
+  - 64
+  - 128
+  - 256
+  - 512
+  dropout: 0.1
+  in_channels: 4
+  name: UNet
+  num_res_units: 2
+  out_channels: 4
+  spatial_dims: 3
+  strides:
+  - 2
+  - 2
+  - 2
+  - 2
+seed: 42
+training:
+  batch_size: 2
+  early_stopping:
+    min_delta: 0.0005
+    patience: 30
+  epochs: 100
+  grad_clip: 0.5
+  learning_rate: 1.0e-05
+  num_workers: 4
+  scheduler:
+    T_0: 25
+    T_mult: 2
+    eta_min: 1.0e-07
+    name: CosineAnnealingWarmRestarts
+  weight_decay: 1.0e-05
+validation:
+  overlap: 0.5
+  sliding_window_batch_size: 4
+  val_interval: 1
+
+[2025-12-29 22:19:59] [INFO] [logger.py:133] [Step 10320] train/loss: 0.4045
+[2025-12-29 22:20:07] [INFO] [logger.py:133] [Step 10330] train/loss: 0.3922
+[2025-12-29 22:20:18] [INFO] [logger.py:133] [Step 10340] train/loss: 0.4421
+[2025-12-29 22:20:26] [INFO] [logger.py:133] [Step 10350] train/loss: 0.2574
+[2025-12-29 22:20:37] [INFO] [logger.py:133] [Step 10360] train/loss: 0.2996
+[2025-12-29 22:20:46] [INFO] [logger.py:133] [Step 10370] train/loss: 0.3539
+[2025-12-29 22:20:55] [INFO] [logger.py:133] [Step 10380] train/loss: 0.3231
+[2025-12-29 22:21:06] [INFO] [logger.py:133] [Step 10390] train/loss: 0.2458
+[2025-12-29 22:21:15] [INFO] [logger.py:133] [Step 10400] train/loss: 0.3321
+[2025-12-29 22:21:22] [INFO] [logger.py:133] [Step 10410] train/loss: 0.3085
+[2025-12-29 22:21:33] [INFO] [logger.py:133] [Step 10420] train/loss: 0.2878
+[2025-12-29 22:21:43] [INFO] [logger.py:133] [Step 10430] train/loss: 0.3903
+[2025-12-29 22:21:51] [INFO] [logger.py:133] [Step 10440] train/loss: 0.2511
+[2025-12-29 22:22:36] [INFO] [logger.py:98] Epoch 80 | Train Loss: 0.2749 | Val Loss: 0.1981 | Val Dice: 0.7384 | LR: 7.81e-05 | Time: 162.3s
+[2025-12-29 22:22:36] [INFO] [logger.py:133] [Step 80] train/loss: 0.2749
+[2025-12-29 22:22:36] [INFO] [logger.py:133] [Step 80] val/loss: 0.1981, dice_ncr: 0.6934, dice_ed: 0.7607, dice_et: 0.7610, mean_dice: 0.7384
+[2025-12-29 22:22:37] [INFO] [logger.py:98] New best model! Dice: 0.7384
+[2025-12-29 22:22:41] [INFO] [logger.py:133] [Step 10449] train/loss: 0.1491
+[2025-12-29 22:22:50] [INFO] [logger.py:133] [Step 10459] train/loss: 0.4588
+[2025-12-29 22:23:02] [INFO] [logger.py:133] [Step 10469] train/loss: 0.2719
+[2025-12-29 22:23:10] [INFO] [logger.py:133] [Step 10479] train/loss: 0.2943
+[2025-12-29 22:23:22] [INFO] [logger.py:133] [Step 10489] train/loss: 0.1621
+[2025-12-29 22:23:31] [INFO] [logger.py:133] [Step 10499] train/loss: 0.1588
+[2025-12-29 22:23:40] [INFO] [logger.py:133] [Step 10509] train/loss: 0.2956
+[2025-12-29 22:23:51] [INFO] [logger.py:133] [Step 10519] train/loss: 0.3680
+[2025-12-29 22:24:01] [INFO] [logger.py:133] [Step 10529] train/loss: 0.3120
+[2025-12-29 22:24:09] [INFO] [logger.py:133] [Step 10539] train/loss: 0.3055
+[2025-12-29 22:24:20] [INFO] [logger.py:133] [Step 10549] train/loss: 0.1632
+[2025-12-29 22:24:30] [INFO] [logger.py:133] [Step 10559] train/loss: 0.3240
+[2025-12-29 22:24:38] [INFO] [logger.py:133] [Step 10569] train/loss: 0.5028
+[2025-12-29 22:25:22] [INFO] [logger.py:98] Epoch 81 | Train Loss: 0.2765 | Val Loss: 0.2035 | Val Dice: 0.7301 | LR: 7.68e-05 | Time: 165.1s
+[2025-12-29 22:25:22] [INFO] [logger.py:133] [Step 81] train/loss: 0.2765
+[2025-12-29 22:25:22] [INFO] [logger.py:133] [Step 81] val/loss: 0.2035, dice_ncr: 0.6897, dice_ed: 0.7528, dice_et: 0.7477, mean_dice: 0.7301
+[2025-12-29 22:25:27] [INFO] [logger.py:133] [Step 10578] train/loss: 0.1188
+[2025-12-29 22:25:36] [INFO] [logger.py:133] [Step 10588] train/loss: 0.3370
+[2025-12-29 22:25:48] [INFO] [logger.py:133] [Step 10598] train/loss: 0.2570
+[2025-12-29 22:25:55] [INFO] [logger.py:133] [Step 10608] train/loss: 0.1435
+[2025-12-29 22:26:06] [INFO] [logger.py:133] [Step 10618] train/loss: 0.4677
+[2025-12-29 22:26:17] [INFO] [logger.py:133] [Step 10628] train/loss: 0.2168
+[2025-12-29 22:26:25] [INFO] [logger.py:133] [Step 10638] train/loss: 0.3093
+[2025-12-29 22:26:37] [INFO] [logger.py:133] [Step 10648] train/loss: 0.4563
+[2025-12-29 22:26:45] [INFO] [logger.py:133] [Step 10658] train/loss: 0.3075
+[2025-12-29 22:26:55] [INFO] [logger.py:133] [Step 10668] train/loss: 0.4018
+[2025-12-29 22:27:04] [INFO] [logger.py:133] [Step 10678] train/loss: 0.2098
+[2025-12-29 22:27:16] [INFO] [logger.py:133] [Step 10688] train/loss: 0.2640
+[2025-12-29 22:27:24] [INFO] [logger.py:133] [Step 10698] train/loss: 0.2320
+[2025-12-29 22:28:07] [INFO] [logger.py:98] Epoch 82 | Train Loss: 0.2689 | Val Loss: 0.2026 | Val Dice: 0.7324 | LR: 7.55e-05 | Time: 164.5s
+[2025-12-29 22:28:07] [INFO] [logger.py:133] [Step 82] train/loss: 0.2689
+[2025-12-29 22:28:07] [INFO] [logger.py:133] [Step 82] val/loss: 0.2026, dice_ncr: 0.6837, dice_ed: 0.7568, dice_et: 0.7565, mean_dice: 0.7324
+[2025-12-29 22:28:13] [INFO] [logger.py:133] [Step 10707] train/loss: 0.2681
+[2025-12-29 22:28:22] [INFO] [logger.py:133] [Step 10717] train/loss: 0.1803
+[2025-12-29 22:28:34] [INFO] [logger.py:133] [Step 10727] train/loss: 0.3477
+[2025-12-29 22:28:41] [INFO] [logger.py:133] [Step 10737] train/loss: 0.2028
+[2025-12-29 22:28:53] [INFO] [logger.py:133] [Step 10747] train/loss: 0.2964
+[2025-12-29 22:29:02] [INFO] [logger.py:133] [Step 10757] train/loss: 0.3496
+[2025-12-29 22:29:11] [INFO] [logger.py:133] [Step 10767] train/loss: 0.3995
+[2025-12-29 22:29:22] [INFO] [logger.py:133] [Step 10777] train/loss: 0.2967
+[2025-12-29 22:29:32] [INFO] [logger.py:133] [Step 10787] train/loss: 0.1827
+[2025-12-29 22:29:40] [INFO] [logger.py:133] [Step 10797] train/loss: 0.5861
+[2025-12-29 22:29:51] [INFO] [logger.py:133] [Step 10807] train/loss: 0.2013
+[2025-12-29 22:30:01] [INFO] [logger.py:133] [Step 10817] train/loss: 0.2588
+[2025-12-29 22:30:09] [INFO] [logger.py:133] [Step 10827] train/loss: 0.4802
+[2025-12-29 22:30:52] [INFO] [logger.py:98] Epoch 83 | Train Loss: 0.2783 | Val Loss: 0.1965 | Val Dice: 0.7410 | LR: 7.41e-05 | Time: 164.1s
+[2025-12-29 22:30:52] [INFO] [logger.py:133] [Step 83] train/loss: 0.2783
+[2025-12-29 22:30:52] [INFO] [logger.py:133] [Step 83] val/loss: 0.1965, dice_ncr: 0.7010, dice_ed: 0.7605, dice_et: 0.7615, mean_dice: 0.7410
+[2025-12-29 22:30:55] [INFO] [logger.py:98] New best model! Dice: 0.7410
+[2025-12-29 22:31:00] [INFO] [logger.py:133] [Step 10836] train/loss: 0.2811
+[2025-12-29 22:31:09] [INFO] [logger.py:133] [Step 10846] train/loss: 0.2633
+[2025-12-29 22:31:20] [INFO] [logger.py:133] [Step 10856] train/loss: 0.2130
+[2025-12-29 22:31:28] [INFO] [logger.py:133] [Step 10866] train/loss: 0.2564
+[2025-12-29 22:31:40] [INFO] [logger.py:133] [Step 10876] train/loss: 0.3020
+[2025-12-29 22:31:49] [INFO] [logger.py:133] [Step 10886] train/loss: 0.4006
+[2025-12-29 22:31:57] [INFO] [logger.py:133] [Step 10896] train/loss: 0.1635
+[2025-12-29 22:32:08] [INFO] [logger.py:133] [Step 10906] train/loss: 0.2699
+[2025-12-29 22:32:17] [INFO] [logger.py:133] [Step 10916] train/loss: 0.2135
+[2025-12-29 22:32:25] [INFO] [logger.py:133] [Step 10926] train/loss: 0.2982
+[2025-12-29 22:32:35] [INFO] [logger.py:133] [Step 10936] train/loss: 0.2504
+[2025-12-29 22:32:46] [INFO] [logger.py:133] [Step 10946] train/loss: 0.4771
+[2025-12-29 22:32:54] [INFO] [logger.py:133] [Step 10956] train/loss: 0.2939
+[2025-12-29 22:33:37] [INFO] [logger.py:98] Epoch 84 | Train Loss: 0.2716 | Val Loss: 0.1959 | Val Dice: 0.7420 | LR: 7.27e-05 | Time: 161.9s
+[2025-12-29 22:33:37] [INFO] [logger.py:133] [Step 84] train/loss: 0.2716
+[2025-12-29 22:33:37] [INFO] [logger.py:133] [Step 84] val/loss: 0.1959, dice_ncr: 0.7112, dice_ed: 0.7512, dice_et: 0.7635, mean_dice: 0.7420
+[2025-12-29 22:33:40] [INFO] [logger.py:98] New best model! Dice: 0.7420
+[2025-12-29 22:33:44] [INFO] [logger.py:133] [Step 10965] train/loss: 0.2308
+[2025-12-29 22:33:54] [INFO] [logger.py:133] [Step 10975] train/loss: 0.2889
+[2025-12-29 22:34:05] [INFO] [logger.py:133] [Step 10985] train/loss: 0.2535
+[2025-12-29 22:34:13] [INFO] [logger.py:133] [Step 10995] train/loss: 0.1454
+[2025-12-29 22:34:25] [INFO] [logger.py:133] [Step 11005] train/loss: 0.3389
+[2025-12-29 22:34:34] [INFO] [logger.py:133] [Step 11015] train/loss: 0.1936
+[2025-12-29 22:34:43] [INFO] [logger.py:133] [Step 11025] train/loss: 0.1428
+[2025-12-29 22:34:54] [INFO] [logger.py:133] [Step 11035] train/loss: 0.3080
+[2025-12-29 22:35:04] [INFO] [logger.py:133] [Step 11045] train/loss: 0.2063
+[2025-12-29 22:35:12] [INFO] [logger.py:133] [Step 11055] train/loss: 0.4117
+[2025-12-29 22:35:23] [INFO] [logger.py:133] [Step 11065] train/loss: 0.2346
+[2025-12-29 22:35:33] [INFO] [logger.py:133] [Step 11075] train/loss: 0.3562
+[2025-12-29 22:35:41] [INFO] [logger.py:133] [Step 11085] train/loss: 0.3345
+[2025-12-29 22:36:25] [INFO] [logger.py:98] Epoch 85 | Train Loss: 0.2758 | Val Loss: 0.1958 | Val Dice: 0.7410 | LR: 7.13e-05 | Time: 165.1s
+[2025-12-29 22:36:25] [INFO] [logger.py:133] [Step 85] train/loss: 0.2758
+[2025-12-29 22:36:25] [INFO] [logger.py:133] [Step 85] val/loss: 0.1958, dice_ncr: 0.6924, dice_ed: 0.7624, dice_et: 0.7683, mean_dice: 0.7410
+[2025-12-29 22:36:31] [INFO] [logger.py:133] [Step 11094] train/loss: 0.3695
+[2025-12-29 22:36:40] [INFO] [logger.py:133] [Step 11104] train/loss: 0.2067
+[2025-12-29 22:36:51] [INFO] [logger.py:133] [Step 11114] train/loss: 0.3837

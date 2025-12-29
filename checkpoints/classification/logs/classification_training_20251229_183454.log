@@ -1,0 +1,80 @@
+[2025-12-29 18:34:54] [INFO] [logger.py:151] Configuration:
+amp:
+  enabled: true
+augmentation:
+  input_size:
+  - 224
+  - 224
+  num_slices: 1
+  random_brightness: 0.2
+  random_contrast: 0.2
+  random_horizontal_flip: 0.5
+  random_rotation: 15
+  random_scale:
+  - 0.9
+  - 1.1
+  random_vertical_flip: 0.0
+  slice_sampling: uniform
+checkpoint:
+  metric: val_accuracy
+  mode: max
+  save_best_only: true
+  save_dir: checkpoints/classification
+classes:
+  names:
+  - glioma
+  - meningioma
+  - pituitary
+  - no_tumor
+  num_classes: 4
+  weights: null
+data:
+  labels_file: data/labels_cls.csv
+  roi_dir: data/roi
+  splits_dir: data/splits_cls
+evaluation:
+  metrics:
+  - accuracy
+  - precision
+  - recall
+  - f1
+  - auc_roc
+  save_confusion_matrix: true
+  save_roc_curves: true
+logging:
+  log_interval: 10
+  project_name: brain-tumor-classification
+  use_wandb: false
+loss:
+  alpha: null
+  gamma: 2.0
+  label_smoothing: 0.1
+  name: FocalLoss
+model:
+  backbone: convnext_base
+  dropout: 0.3
+  in_channels: 3
+  pooling: attention
+  pretrained: true
+seed: 42
+training:
+  batch_size: 16
+  betas:
+  - 0.9
+  - 0.999
+  early_stopping:
+    min_delta: 0.001
+    patience: 20
+  epochs: 100
+  grad_clip: 1.0
+  learning_rate: 0.0001
+  num_workers: 4
+  optimizer: AdamW
+  scheduler:
+    T_max: 100
+    eta_min: 1.0e-07
+    name: CosineAnnealingLR
+  weight_decay: 0.0001
+validation:
+  val_interval: 1
+

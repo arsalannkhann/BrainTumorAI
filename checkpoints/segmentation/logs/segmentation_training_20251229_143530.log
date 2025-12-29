@@ -1,0 +1,76 @@
+[2025-12-29 14:35:30] [INFO] [logger.py:151] Configuration:
+amp:
+  enabled: true
+augmentation:
+  random_flip_prob: 0.5
+  random_intensity_scale: 0.1
+  random_intensity_shift: 0.1
+  random_rotate_prob: 0.3
+  roi_size:
+  - 128
+  - 128
+  - 128
+  rotate_range:
+  - 0.5236
+  - 0.5236
+  - 0.5236
+checkpoint:
+  metric: mean_dice
+  mode: max
+  save_best_only: true
+  save_dir: checkpoints/segmentation
+data:
+  masks_dir: data/masks
+  processed_dir: data/processed
+  raw_dir: data/raw
+  splits_dir: data/splits
+logging:
+  log_interval: 10
+  project_name: brain-tumor-segmentation
+  use_wandb: false
+loss:
+  dice_weight: 1.0
+  focal_weight: 1.0
+  gamma: 2.0
+  include_background: false
+  name: DiceFocalLoss
+  softmax: true
+model:
+  channels:
+  - 32
+  - 64
+  - 128
+  - 256
+  - 512
+  dropout: 0.1
+  in_channels: 4
+  name: UNet
+  num_res_units: 2
+  out_channels: 4
+  spatial_dims: 3
+  strides:
+  - 2
+  - 2
+  - 2
+  - 2
+seed: 42
+training:
+  batch_size: 2
+  early_stopping:
+    min_delta: 0.001
+    patience: 50
+  epochs: 300
+  grad_clip: 1.0
+  learning_rate: 0.0001
+  num_workers: 4
+  scheduler:
+    T_0: 50
+    T_mult: 2
+    eta_min: 1.0e-07
+    name: CosineAnnealingWarmRestarts
+  weight_decay: 1.0e-05
+validation:
+  overlap: 0.5
+  sliding_window_batch_size: 4
+  val_interval: 1
+

@@ -43,11 +43,12 @@ training:
   # Gradient clipping
   grad_clip: 0.5  # Tighter clipping for stability
 
-# Loss function - try GeneralizedDice for class balance
+# Loss function - FocalTversky for class imbalance (Quick Win upgrade)
 loss:
-  name: "DiceFocalLoss"  # Valid: DiceFocalLoss, DiceLoss, FocalLoss, BraTSLoss
-  dice_weight: 0.7
-  focal_weight: 0.3
+  name: "FocalTversky"  # Better for class imbalance, targets +2-3% Dice
+  alpha: 0.3            # False positive weight
+  beta: 0.7             # False negative weight (emphasize recall)
+  gamma: 0.75           # Focal parameter for hard examples
   include_background: false
   softmax: true
 

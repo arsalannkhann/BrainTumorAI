@@ -37,15 +37,16 @@ checkpoints/
 *.nii.gz
 
 # Model outputs and results
-results/
+!results/
 results_test/
 masks/
-*.png
-*.jpg
-*.jpeg
+# *.png  <-- Remove global image ignore to allow results images
+# *.jpg
+# *.jpeg
 
 # Logs
-*.log
+# Whitelist specific logs in checkpoints if needed
+!checkpoints/**/logs/*.log
 preprocess.log
 logs/
 tensorboard/

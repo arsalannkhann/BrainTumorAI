@@ -299,9 +299,20 @@ def get_loss_function(
             to_onehot_y=True,
         )
     elif loss_name_lower == "focaltversky" or loss_name_lower == "focaltversktloss":
-        return FocalTverskyLoss(**kwargs)
+        return FocalTverskyLoss(
+            include_background=kwargs.get("include_background", False),
+            softmax=kwargs.get("softmax", True),
+            alpha=kwargs.get("alpha", 0.3),
+            beta=kwargs.get("beta", 0.7),
+            gamma=kwargs.get("gamma", 0.75),
+            reduction=kwargs.get("reduction", "mean"),
+        )
     elif loss_name_lower == "bratsloss" or loss_name_lower == "brats":
-        return BraTSLoss(**kwargs)
+        return BraTSLoss(
+            dice_weight=kwargs.get("dice_weight", 1.0),
+            focal_weight=kwargs.get("focal_weight", 1.0),
+            gamma=kwargs.get("gamma", 2.0),
+        )
     else:
         raise ValueError(f"Unknown loss function: {loss_name}")
 

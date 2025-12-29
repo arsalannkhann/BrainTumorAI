@@ -65,6 +65,79 @@ def run_inference(
     return pred.cpu().numpy().astype(np.uint8)
 
 
+def run_inference_with_tta(
+    model: torch.nn.Module,
+    image: torch.Tensor,
+    device: torch.device,
+    roi_size: Tuple[int, int, int] = (128, 128, 128),
+    sw_batch_size: int = 4,
+    overlap: float = 0.5,
+    use_amp: bool = True,
+) -> np.ndarray:
+    """
+    Run inference with Test-Time Augmentation (TTA).
+    
+    Applies flip augmentations along each axis and averages predictions.
+    Typically provides ~1-2% Dice improvement.
+    
+    Args:
+        model: Segmentation model
+        image: Input tensor (1, C, H, W, D)
+        device: Inference device
+        roi_size: ROI size for sliding window
+        sw_batch_size: Batch size for sliding window
+        overlap: Overlap ratio
+        use_amp: Whether to use AMP
+        
+    Returns:
+        Segmentation mask (H, W, D)
+    """
+    model.eval()
+    image = image.to(device)
+    
+    # TTA: original + 3 axis flips
+    flip_dims = [None, (2,), (3,), (4,)]  # No flip, flip H, flip W, flip D
+    
+    accumulated_probs = None
+    
+    with torch.no_grad():
+        for flip_dim in flip_dims:
+            # Apply flip
+            if flip_dim is not None:
+                aug_image = torch.flip(image, dims=flip_dim)
+            else:
+                aug_image = image
+            
+            # Run inference
+            with autocast("cuda", enabled=use_amp):
+                outputs = sliding_window_inference(
+                    aug_image,
+                    roi_size=roi_size,
+                    sw_batch_size=sw_batch_size,
+                    predictor=model,
+                    overlap=overlap,
+                )
+            
+            # Apply softmax to get probabilities
+            probs = torch.softmax(outputs, dim=1)
+            
+            # Reverse flip
+            if flip_dim is not None:
+                probs = torch.flip(probs, dims=flip_dim)
+            
+            # Accumulate
+            if accumulated_probs is None:
+                accumulated_probs = probs
+            else:
+                accumulated_probs = accumulated_probs + probs
+    
+    # Average and get predicted class
+    averaged_probs = accumulated_probs / len(flip_dims)
+    pred = torch.argmax(averaged_probs, dim=1).squeeze(0)
+    
+    return pred.cpu().numpy().astype(np.uint8)
+
+
 def infer_patient(
     model: torch.nn.Module,
     patient_id: str,
@@ -75,6 +148,7 @@ def infer_patient(
     sw_batch_size: int = 4,
     overlap: float = 0.5,
     use_amp: bool = True,
+    use_tta: bool = False,
     affine: Optional[np.ndarray] = None,
 ) -> Path:
     """
@@ -90,6 +164,7 @@ def infer_patient(
         sw_batch_size: Batch size for sliding window
         overlap: Overlap ratio
         use_amp: Whether to use AMP
+        use_tta: Whether to use Test-Time Augmentation
         affine: Optional affine matrix for output
         
     Returns:
@@ -106,8 +181,9 @@ def infer_patient(
     volume = np.load(volume_path).astype(np.float32)
     image = torch.from_numpy(volume).unsqueeze(0)  # (1, C, H, W, D)
     
-    # Run inference
-    mask = run_inference(
+    # Run inference (with or without TTA)
+    inference_fn = run_inference_with_tta if use_tta else run_inference
+    mask = inference_fn(
         model=model,
         image=image,
         device=device,
@@ -142,6 +218,7 @@ def run_batch_inference(
     sw_batch_size: int = 4,
     overlap: float = 0.5,
     use_amp: bool = True,
+    use_tta: bool = False,
     device: Optional[str] = None,
 ) -> None:
     """
@@ -203,6 +280,7 @@ def run_batch_inference(
                 sw_batch_size=sw_batch_size,
                 overlap=overlap,
                 use_amp=use_amp,
+                use_tta=use_tta,
             )
             successful += 1
         except Exception as e:
@@ -305,6 +383,11 @@ Examples:
         default=42,
         help="Random seed for reproducibility",
     )
+    parser.add_argument(
+        "--tta",
+        action="store_true",
+        help="Enable Test-Time Augmentation (~1-2%% Dice boost, 4x slower)",
+    )
     
     args = parser.parse_args()
     
@@ -330,6 +413,7 @@ Examples:
         sw_batch_size=args.sw_batch_size,
         overlap=args.overlap,
         use_amp=not args.no_amp,
+        use_tta=args.tta,
         device=args.device,
     )
 
