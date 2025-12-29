@@ -637,8 +637,8 @@ class BrainTumorInferenceEngine:
 
 
 def create_inference_engine(
-    cls_checkpoint: str = "checkpoints/classification/best_model.pt",
-    seg_checkpoint: str = "checkpoints/segmentation/best_model.pt",
+    cls_checkpoint: str = "models/classification_best.pt",
+    seg_checkpoint: str = "models/segmentation_best.pt",
     seg_config: str = "configs/seg.yaml",
     device: Optional[str] = None,
 ) -> BrainTumorInferenceEngine:

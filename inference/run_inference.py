@@ -238,13 +238,13 @@ Examples:
     parser.add_argument(
         "--cls-checkpoint",
         type=Path,
-        default=Path("checkpoints/classification/best_model.pt"),
+        default=Path("models/classification_best.pt"),
         help="Classification model checkpoint"
     )
     parser.add_argument(
         "--seg-checkpoint",
         type=Path,
-        default=Path("checkpoints/segmentation/best_model.pt"),
+        default=Path("models/segmentation_best.pt"),
         help="Segmentation model checkpoint"
     )
     parser.add_argument(

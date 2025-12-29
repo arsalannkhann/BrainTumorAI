@@ -133,8 +133,8 @@ from inference import BrainTumorInferenceEngine, TumorClass
 
 # Initialize with custom checkpoints
 engine = BrainTumorInferenceEngine(
-    cls_checkpoint="checkpoints/classification/best_model.pt",
-    seg_checkpoint="checkpoints/segmentation/best_model.pt",
+    cls_checkpoint="models/classification_best.pt",
+    seg_checkpoint="models/segmentation_best.pt",
     seg_config="configs/seg.yaml",
     device="cuda",
 )
@@ -347,8 +347,8 @@ services:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CLS_CHECKPOINT` | `checkpoints/classification/best_model.pt` | Classification model path |
-| `SEG_CHECKPOINT` | `checkpoints/segmentation/best_model.pt` | Segmentation model path |
+| `CLS_CHECKPOINT` | `models/classification_best.pt` | Classification model path |
+| `SEG_CHECKPOINT` | `models/segmentation_best.pt` | Segmentation model path |
 | `SEG_CONFIG` | `configs/seg.yaml` | Segmentation config path |
 | `DEVICE` | `cuda` | Inference device |
 | `CONFIDENCE_THRESHOLD` | `0.85` | Low confidence threshold |
@@ -360,11 +360,9 @@ services:
 ### Required Files
 
 ```
-checkpoints/
-├── classification/
-│   └── best_model.pt      # Classification model
-└── segmentation/
-    └── best_model.pt      # Segmentation model
+models/
+├── classification_best.pt      # Classification model
+└── segmentation_best.pt        # Segmentation model
 ```
 
 ### Checkpoint Format

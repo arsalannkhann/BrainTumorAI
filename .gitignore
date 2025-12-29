@@ -29,12 +29,18 @@ wheels/
 # Data and large files
 data/
 checkpoints/
+models/
 *.npy
 *.npz
+*.pt
+*.pth
 *.h5
 *.hdf5
 *.nii
 *.nii.gz
+
+# Whitelist "best" models if we want them in Git (optional, but 1GB is too big)
+# For now, let's just keep them ignored but keep the folder
 
 # Model outputs and results
 !results/
@@ -45,8 +51,6 @@ masks/
 # *.jpeg
 
 # Logs
-# Whitelist specific logs in checkpoints if needed
-!checkpoints/**/logs/*.log
 preprocess.log
 logs/
 tensorboard/

@@ -32,11 +32,10 @@ brain-tumor-ai/
 │   ├── raw/                     # Original MRI per patient
 │   ├── processed/               # Preprocessed volumes
 │   ├── masks/                   # Segmentation outputs
-│   ├── roi/                     # Cropped tumor ROIs
-│   └── splits/
-│       ├── train.txt            # Training patient IDs
-│       ├── val.txt              # Validation patient IDs
-│       └── test.txt             # Test patient IDs
+│   └── roi/                     # Cropped tumor ROIs
+├── models/
+│   ├── classification_best.pt   # Best classification checkpoint
+│   └── segmentation_best.pt     # Best segmentation checkpoint (finetuned)
 ├── preprocessing/
 │   ├── n4_bias.py               # N4 bias field correction
 │   ├── skull_strip.py           # Skull stripping (optional)
@@ -47,7 +46,7 @@ brain-tumor-ai/
 │   ├── model.py                 # 3D UNet / UNETR / Swin UNETR
 │   ├── loss.py                  # Dice + Focal loss
 │   ├── train.py                 # Training script
-│   └── infer.py                 # Inference script
+│   └── infer.py                 # Inference script (Legacy/Reference)
 ├── roi_extraction/
 │   └── extract_roi.py           # Bounding box extraction
 ├── classification/
@@ -55,17 +54,20 @@ brain-tumor-ai/
 │   ├── model.py                 # ConvNeXt/Swin classifier
 │   ├── loss.py                  # Focal loss + Label smoothing
 │   ├── train.py                 # Training script
-│   └── evaluate.py              # Evaluation with visualizations
+│   └── evaluate.py              # Evaluation script
+├── inference/
+│   ├── engine.py                # Production inference engine
+│   └── run_inference.py         # CLI tool for inference
 ├── configs/
 │   ├── seg.yaml                 # Segmentation config
 │   └── cls.yaml                 # Classification config
 ├── utils/
-│   ├── seed.py                  # Reproducibility
 │   ├── metrics.py               # Evaluation metrics
-│   ├── logging.py               # Logging + W&B
 │   └── io.py                    # I/O utilities
 ├── requirements.txt
 ├── README.md
+├── demo.py                      # Interactive demo script
+├── test_engine.py               # Inference engine test suite
 └── run_pipeline.sh              # End-to-end execution
 ```
 
@@ -134,6 +136,12 @@ patient_003,2
 ```bash
 chmod +x run_pipeline.sh
 ./run_pipeline.sh all
+
+# Run Interactive Demo
+python demo.py
+
+# Run Inference Engine Test
+python test_engine.py
 ```
 
 Or run individual stages:
@@ -178,7 +186,7 @@ python -m segmentation.train \
 
 ```bash
 python -m segmentation.infer \
-    --checkpoint checkpoints/segmentation/best_model.pt \
+    --checkpoint models/segmentation_best.pt \
     --patient-list data/splits/test.txt \
     --processed-dir data/processed \
     --output-dir data/masks
@@ -205,7 +213,7 @@ python -m classification.train --config configs/cls.yaml
 
 ```bash
 python -m classification.evaluate \
-    --checkpoint checkpoints/classification/best_model.pt \
+    --checkpoint models/classification_best.pt \
     --patient-list data/splits/test.txt \
     --roi-dir data/roi \
     --labels-file data/labels.csv \
