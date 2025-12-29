@@ -36,24 +36,23 @@ brain-tumor-ai/
 ├── models/
 │   ├── classification_best.pt   # Best classification checkpoint
 │   └── segmentation_best.pt     # Best segmentation checkpoint (finetuned)
+├── docs/                        # Consolidated documentation
+│   ├── classification_architecture.md
+│   ├── segmentation_architecture.md
+│   ├── inference.md             # Inference module details
+│   ├── deployment.md            # Deployment guides
+│   └── results.md               # Detailed results and methodology
 ├── preprocessing/
 │   ├── n4_bias.py               # N4 bias field correction
-│   ├── skull_strip.py           # Skull stripping (optional)
 │   ├── normalize.py             # Z-score normalization
 │   └── preprocess_pipeline.py   # Full preprocessing pipeline
 ├── segmentation/
 │   ├── dataset.py               # 3D MRI dataset with MONAI transforms
 │   ├── model.py                 # 3D UNet / UNETR / Swin UNETR
-│   ├── loss.py                  # Dice + Focal loss
-│   ├── train.py                 # Training script
-│   └── infer.py                 # Inference script (Legacy/Reference)
-├── roi_extraction/
-│   └── extract_roi.py           # Bounding box extraction
+│   └── train.py                 # Training script
 ├── classification/
 │   ├── dataset.py               # ROI dataset (2.5D/3D modes)
 │   ├── model.py                 # ConvNeXt/Swin classifier
-│   ├── loss.py                  # Focal loss + Label smoothing
-│   ├── train.py                 # Training script
 │   └── evaluate.py              # Evaluation script
 ├── inference/
 │   ├── engine.py                # Production inference engine
@@ -61,14 +60,10 @@ brain-tumor-ai/
 ├── configs/
 │   ├── seg.yaml                 # Segmentation config
 │   └── cls.yaml                 # Classification config
-├── utils/
-│   ├── metrics.py               # Evaluation metrics
-│   └── io.py                    # I/O utilities
 ├── requirements.txt
-├── README.md
+├── README.md                    # Entry point
 ├── demo.py                      # Interactive demo script
-├── test_engine.py               # Inference engine test suite
-└── run_pipeline.sh              # End-to-end execution
+└── test_engine.py               # Inference engine test suite
 ```
 
 ## 🚀 Quick Start
