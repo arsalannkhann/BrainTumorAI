@@ -1,0 +1,109 @@
+# Classification Training Configuration
+# Brain Tumor Classification from ROI volumes
+
+# Data paths
+data:
+  roi_dir: "data/roi"
+  splits_dir: "data/splits_cls"
+  labels_file: "data/labels_cls.csv"  # patient_id,label
+
+# Class configuration
+classes:
+  num_classes: 4
+  names: ["glioma", "meningioma", "pituitary", "no_tumor"]
+  # Class weights for imbalanced data (optional, set null for auto-compute)
+  weights: null
+
+# Model architecture
+model:
+  # Options: convnext_base, convnext_small, convnext_tiny,
+  #          swin_base_patch4_window7_224, swin_small_patch4_window7_224
+  backbone: "convnext_base"
+  pretrained: true
+  in_channels: 3  # RGB
+  dropout: 0.3
+  
+  # Pooling strategy for 3D->2D
+  pooling: "attention"  # Options: adaptive_avg, max, attention
+
+# Training parameters
+training:
+  batch_size: 16
+  num_workers: 4
+  epochs: 100
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-4
+  
+  # Optimizer
+  optimizer: "AdamW"
+  betas: [0.9, 0.999]
+  
+  # Learning rate scheduler
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 100
+    eta_min: 1.0e-7
+  
+  # Early stopping
+  early_stopping:
+    patience: 20
+    min_delta: 0.001
+  
+  # Gradient clipping
+  grad_clip: 1.0
+
+# Loss function
+loss:
+  name: "FocalLoss"
+  gamma: 2.0
+  alpha: null  # Set null for balanced, or list of weights per class
+  label_smoothing: 0.1
+
+# Data augmentation (applied to 2D slices)
+augmentation:
+  # Spatial
+  random_horizontal_flip: 0.5
+  random_vertical_flip: 0.0
+  random_rotation: 15  # degrees
+  random_scale: [0.9, 1.1]
+  
+  # Intensity
+  random_brightness: 0.2
+  random_contrast: 0.2
+  
+  # Input size
+  input_size: [224, 224]
+  
+  # Slice sampling
+  num_slices: 1  # Number of slices to sample per volume
+  slice_sampling: "uniform"  # Options: uniform, random, center
+
+# Validation
+validation:
+  val_interval: 1
+
+# Checkpointing
+checkpoint:
+  save_dir: "checkpoints/classification"
+  save_best_only: true
+  metric: "val_accuracy"
+  mode: "max"
+
+# Mixed precision
+amp:
+  enabled: true
+
+# Reproducibility
+seed: 42
+
+# Logging
+logging:
+  use_wandb: false
+  project_name: "brain-tumor-classification"
+  log_interval: 10
+
+# Evaluation
+evaluation:
+  metrics: ["accuracy", "precision", "recall", "f1", "auc_roc"]
+  save_confusion_matrix: true
+  save_roc_curves: true

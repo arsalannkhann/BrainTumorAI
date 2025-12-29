@@ -1,0 +1,96 @@
+# Segmentation Fine-Tuning Configuration
+# Low learning rate fine-tuning from best_model.pt
+# Goal: Push Dice from 73.77% to 75%+
+
+# Data paths (same as base config)
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  masks_dir: "data/masks"
+  splits_dir: "data/splits"
+
+# Model architecture (MUST match the trained model)
+model:
+  name: "UNet"
+  spatial_dims: 3
+  in_channels: 4
+  out_channels: 4
+  channels: [32, 64, 128, 256, 512]
+  strides: [2, 2, 2, 2]
+  num_res_units: 2
+  dropout: 0.1
+
+# Fine-Tuning parameters
+training:
+  batch_size: 2
+  num_workers: 4
+  epochs: 100  # Shorter fine-tuning run
+  learning_rate: 1.0e-5  # 10x LOWER than original
+  weight_decay: 1.0e-5
+  
+  # Learning rate scheduler - gentle decay
+  scheduler:
+    name: "CosineAnnealingWarmRestarts"  # Must use this scheduler
+    T_0: 25  # Restart every 25 epochs
+    T_mult: 2
+    eta_min: 1.0e-7
+  
+  # Early stopping - more patience for subtle improvements
+  early_stopping:
+    patience: 30
+    min_delta: 0.0005  # Smaller delta for fine-tuning
+  
+  # Gradient clipping
+  grad_clip: 0.5  # Tighter clipping for stability
+
+# Loss function - try GeneralizedDice for class balance
+loss:
+  name: "DiceFocalLoss"  # Valid: DiceFocalLoss, DiceLoss, FocalLoss, BraTSLoss
+  dice_weight: 0.7
+  focal_weight: 0.3
+  include_background: false
+  softmax: true
+
+# Enhanced Data augmentation
+augmentation:
+  # Spatial
+  random_flip_prob: 0.5
+  random_rotate_prob: 0.3
+  rotate_range: [0.5236, 0.5236, 0.5236]
+  
+  # Intensity - INCREASED for robustness
+  random_intensity_shift: 0.15
+  random_intensity_scale: 0.15
+  
+  # NEW: Gaussian noise for regularization
+  random_gaussian_noise_prob: 0.2
+  random_gaussian_noise_std: 0.05
+  
+  # Crop size
+  roi_size: [128, 128, 128]
+
+# Validation
+validation:
+  val_interval: 1
+  sliding_window_batch_size: 4
+  overlap: 0.5
+
+# Checkpointing
+checkpoint:
+  save_dir: "checkpoints/segmentation_finetuned"
+  save_best_only: true
+  metric: "mean_dice"
+  mode: "max"
+
+# Mixed precision
+amp:
+  enabled: true
+
+# Reproducibility
+seed: 42
+
+# Logging
+logging:
+  use_wandb: false
+  project_name: "brain-tumor-seg-finetune"
+  log_interval: 10

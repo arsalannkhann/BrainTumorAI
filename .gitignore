@@ -1,0 +1,83 @@
+# Virtual Environment
+venv/
+env/
+.venv/
+.env/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Data and large files
+data/
+checkpoints/
+*.npy
+*.npz
+*.h5
+*.hdf5
+*.nii
+*.nii.gz
+
+# Model outputs and results
+results/
+results_test/
+masks/
+*.png
+*.jpg
+*.jpeg
+
+# Logs
+*.log
+preprocess.log
+logs/
+tensorboard/
+wandb/
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# OS specific
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Pip requirements artifacts
+=1.2.0
+=1.4.0
+
+# Cache
+.cache/
+*.cache

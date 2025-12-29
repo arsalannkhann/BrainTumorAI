@@ -1,0 +1,91 @@
+# Segmentation Training Configuration
+# SegMamba for Brain Tumor Segmentation
+
+# Data paths
+data:
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  masks_dir: "data/masks"
+  splits_dir: "data/splits"
+
+# Model architecture
+model:
+  name: "SegMamba"
+  spatial_dims: 3
+  in_channels: 4  # T1, T2, FLAIR, T1ce
+  out_channels: 4  # Background, WT, TC, ET
+  channels: [32, 64, 128, 256, 512]
+  d_state: 16  # Mamba state dimension
+  dropout: 0.1
+
+# Training parameters
+training:
+  batch_size: 2
+  num_workers: 4
+  epochs: 300
+  learning_rate: 1.0e-4
+  weight_decay: 1.0e-5
+  
+  # Learning rate scheduler
+  scheduler:
+    name: "CosineAnnealingWarmRestarts"
+    T_0: 50
+    T_mult: 2
+    eta_min: 1.0e-7
+  
+  # Early stopping
+  early_stopping:
+    patience: 50
+    min_delta: 0.001
+  
+  # Gradient clipping
+  grad_clip: 1.0
+
+# Loss function
+loss:
+  name: "DiceFocalLoss"
+  dice_weight: 1.0
+  focal_weight: 1.0
+  gamma: 2.0  # Focal loss gamma
+  include_background: false
+  softmax: true
+
+# Data augmentation
+augmentation:
+  # Spatial
+  random_flip_prob: 0.5
+  random_rotate_prob: 0.3
+  rotate_range: [0.5236, 0.5236, 0.5236]  # ~30 degrees in radians
+  
+  # Intensity
+  random_intensity_shift: 0.1
+  random_intensity_scale: 0.1
+  
+  # Crop size
+  roi_size: [128, 128, 128]
+
+# Validation
+validation:
+  val_interval: 1
+  sliding_window_batch_size: 4
+  overlap: 0.5
+
+# Checkpointing
+checkpoint:
+  save_dir: "checkpoints/segmamba"
+  save_best_only: true
+  metric: "mean_dice"
+  mode: "max"
+
+# Mixed precision
+amp:
+  enabled: true
+
+# Reproducibility
+seed: 42
+
+# Logging
+logging:
+  use_wandb: false
+  project_name: "brain-tumor-segmamba"
+  log_interval: 10

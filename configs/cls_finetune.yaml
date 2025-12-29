@@ -1,0 +1,96 @@
+# Classification Fine-Tuning Configuration
+# Low learning rate fine-tuning for improved accuracy
+
+# Data paths
+data:
+  roi_dir: "data/roi"
+  splits_dir: "data/splits_cls"
+  labels_file: "data/labels_cls.csv"
+
+# Class configuration
+classes:
+  num_classes: 4
+  names: ["glioma", "meningioma", "pituitary", "no_tumor"]
+  weights: null
+
+# Model architecture
+model:
+  backbone: "convnext_base"
+  pretrained: true
+  in_channels: 3
+  dropout: 0.4  # Slightly higher dropout for regularization
+  pooling: "attention"
+
+# Fine-Tuning parameters
+training:
+  batch_size: 16
+  num_workers: 4
+  epochs: 50  # Shorter fine-tuning
+  learning_rate: 1.0e-5  # 10x LOWER
+  weight_decay: 1.0e-4
+  
+  optimizer: "AdamW"
+  betas: [0.9, 0.999]
+  
+  scheduler:
+    name: "CosineAnnealingLR"
+    T_max: 50
+    eta_min: 1.0e-7
+  
+  early_stopping:
+    patience: 15
+    min_delta: 0.001
+  
+  grad_clip: 0.5
+
+# Loss function
+loss:
+  name: "FocalLoss"
+  gamma: 2.0
+  alpha: null
+  label_smoothing: 0.15  # Slightly more smoothing
+
+# Enhanced Data augmentation
+augmentation:
+  # Spatial
+  random_horizontal_flip: 0.5
+  random_vertical_flip: 0.3  # Add vertical flip
+  random_rotation: 20  # More rotation
+  random_scale: [0.85, 1.15]  # More scale variation
+  
+  # Intensity - INCREASED
+  random_brightness: 0.3
+  random_contrast: 0.3
+  
+  # NEW: Color jitter
+  random_gamma: [0.8, 1.2]  # Gamma correction (from paper)
+  
+  input_size: [224, 224]
+  num_slices: 1
+  slice_sampling: "uniform"
+
+# Validation
+validation:
+  val_interval: 1
+
+# Checkpointing
+checkpoint:
+  save_dir: "checkpoints/classification_finetuned"
+  save_best_only: true
+  metric: "val_accuracy"
+  mode: "max"
+
+amp:
+  enabled: true
+
+seed: 42
+
+logging:
+  use_wandb: false
+  project_name: "brain-tumor-cls-finetune"
+  log_interval: 10
+
+evaluation:
+  metrics: ["accuracy", "precision", "recall", "f1", "auc_roc"]
+  save_confusion_matrix: true
+  save_roc_curves: true

@@ -1,0 +1,21 @@
+{
+  "image_id": "BraTS20_Training_001",
+  "timestamp": "2025-12-29T22:04:13.390125",
+  "device": "cuda",
+  "inference_time_ms": 256.8898240024282,
+  "final_status": "ready",
+  "segmentation": {
+    "tumor_area_percentage": 8.345890045166016,
+    "edema_present": true,
+    "enhancing_present": true,
+    "necrotic_present": true
+  },
+  "validation": {
+    "confidence_passed": true,
+    "segmentation_plausible": true,
+    "anatomical_plausibility": true,
+    "mask_alignment_valid": true,
+    "notes": [],
+    "requires_manual_review": false
+  }
+}

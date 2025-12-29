@@ -1,0 +1,51 @@
+# BM-MAE Pretraining Configuration
+# Self-supervised masked autoencoder for brain MRI
+
+# Data paths
+data:
+  processed_dir: "data/processed"
+  train_list: "data/splits/train.txt"
+
+# Model architecture
+model:
+  variant: "base"  # Options: small, base, large
+  img_size: [128, 128, 128]
+  patch_size: [16, 16, 16]
+  in_channels: 4  # T1, T2, FLAIR, T1ce
+  
+  # MAE specific
+  mask_ratio: 0.75  # Mask 75% of patches
+  modality_dropout: 0.1  # Randomly drop modalities
+
+# Training parameters
+training:
+  batch_size: 4
+  num_workers: 4
+  epochs: 200
+  learning_rate: 1.5e-4
+  min_lr: 1.0e-7
+  weight_decay: 0.05
+  
+  # Optimizer
+  betas: [0.9, 0.95]
+  
+  # Gradient clipping
+  grad_clip: 1.0
+
+# Mixed precision
+amp:
+  enabled: true
+
+# Checkpointing
+checkpoint:
+  save_dir: "checkpoints/mae"
+  save_interval: 50
+
+# Reproducibility
+seed: 42
+
+# Logging
+logging:
+  use_wandb: false
+  project_name: "bm-mae-pretrain"
+  log_interval: 10
